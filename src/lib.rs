@@ -102,26 +102,26 @@ impl RedisLoggerConfigBuilder {
     }
 
     #[cfg(feature = "default_encoding")]
-    pub fn with_pubsub(mut self, channels: (Vec<String>, Option<Box<dyn PubSubEncoder>>)) -> Self {
-        self.channels = Some((channels.0, channels.1.unwrap_or(Box::new(DefaultPubSubEncoder::new()))));
+    pub fn with_pubsub(mut self, channels: Vec<String>, encoder: Option<Box<dyn PubSubEncoder>>) -> Self {
+        self.channels = Some((channels, encoder.unwrap_or(Box::new(DefaultPubSubEncoder::new()))));
         self
     }
 
     #[cfg(feature = "default_encoding")]
-    pub fn with_streams(mut self, streams: (Vec<String>, Option<Box<dyn StreamEncoder>>)) -> Self {
-        self.streams = Some((streams.0, streams.1.unwrap_or(Box::new(DefaultStreamEncoder::new()))));
+    pub fn with_streams(mut self, streams: Vec<String>, encoder: Option<Box<dyn StreamEncoder>>) -> Self {
+        self.streams = Some((streams, encoder.unwrap_or(Box::new(DefaultStreamEncoder::new()))));
         self
     }
 
     #[cfg(not(feature = "default_encoding"))]
-    pub fn with_pubsub(mut self, channels: (Vec<String>, Box<dyn PubSubEncoder>)) -> Self {
-        self.channels = Some(channels);
+    pub fn with_pubsub(mut self, channels: Vec<String>, encoder: Box<dyn PubSubEncoder>) -> Self {
+        self.channels = Some((channels, encoder));
         self
     }
 
     #[cfg(not(feature = "default_encoding"))]
-    pub fn with_streams(mut self, streams: (Vec<String>, Box<dyn StreamEncoder>)) -> Self {
-        self.streams = Some(streams);
+    pub fn with_streams(mut self, streams: Vec<String>, encoder: Box<dyn StreamEncoder>) -> Self {
+        self.streams = Some((streams, encoder));
         self
     }
 
@@ -130,6 +130,16 @@ impl RedisLoggerConfigBuilder {
         if self.channels.is_none() && self.streams.is_none() {
             return Err(RedisLoggerConfigError::ChannelNotSet());
         };
+        if let Some((channels, _)) = &self.channels {
+            if channels.is_empty() {
+                return Err(RedisLoggerConfigError::ChannelNotSet());
+            }
+        }
+        if let Some((streams, _)) = &self.streams {
+            if streams.is_empty() {
+                return Err(RedisLoggerConfigError::ChannelNotSet());
+            }
+        }
 
         let connection = client.get_connection()?;
         Ok(RedisLoggerConfig {
