@@ -53,7 +53,7 @@ mod lib_tests;
 /// Trait for encoding log messages to be published to a pub/sub channel.
 pub trait PubSubEncoder: Send + Sync {
     /// Encodes the given `log::Record` into a byte vector.
-    fn encode<'a>(&self, record: &Record<'a>) -> Vec<u8>;
+    fn encode(&self, record: &Record<'_>) -> Vec<u8>;
     #[cfg(test)]
     fn name(&self) -> &'static str;
 }
@@ -61,7 +61,7 @@ pub trait PubSubEncoder: Send + Sync {
 /// Trait for encoding log messages to be added to a Redis stream.
 pub trait StreamEncoder: Send + Sync {
     /// Encodes the given `log::Record` into a vector of tuples of a field name and the corresponding value as a byte vector.
-    fn encode<'a>(&self, record: &Record<'a>) -> Vec<(&'static str, Vec<u8>)>;
+    fn encode(&self, record: &Record<'_>) -> Vec<(&'static str, Vec<u8>)>;
     #[cfg(test)]
     fn name(&self) -> &'static str;
 }
@@ -89,7 +89,7 @@ pub struct RedisLogger {
 }
 
 impl RedisLogger {
-    /// Creates a new instance of RedisLogger with the specified log level and configuration.
+    /// Creates a new instance of `RedisLogger` with the specified log level and configuration.
     ///
     /// # Arguments
     ///
@@ -98,7 +98,7 @@ impl RedisLogger {
     ///
     /// # Returns
     ///
-    /// A boxed instance of RedisLogger, not yet initialized as the global logger.
+    /// A boxed instance of `RedisLogger`, not yet initialized as the global logger.
     pub fn new(level: LevelFilter, config: RedisLoggerConfig) -> Box<Self> {
         Box::new(Self { level, config })
     }
@@ -112,10 +112,14 @@ impl RedisLogger {
     ///
     /// # Returns
     ///
-    /// Result indicating success or an error of type RedisLoggerConfigError.
+    /// Result indicating success or an error of type `RedisLoggerConfigError`.
     /// If successful, the logger is set as the global logger.
+    /// 
+    /// # Errors
+    /// 
+    /// see above
     pub fn init(level: LevelFilter, config: RedisLoggerConfig) -> Result<(), RedisLoggerConfigError> {
-        let redis_logger = RedisLogger::new(level, config);
+        let redis_logger = Self::new(level, config);
         log::set_max_level(level);
         log::set_boxed_logger(redis_logger)?;
         Ok(())
@@ -153,7 +157,7 @@ impl Log for RedisLogger {
 
             // this unwrap only panics if the connection is poisoned, so we can't do much anyway and will panic, too!
             if let Err(e) = pipe.query::<()>(config.connection.lock().unwrap().as_mut_connection_like()) {
-                eprintln!("Error logging to Redis: {}", e);
+                eprintln!("Error logging to Redis: {e}");
             }
         }
     }
@@ -170,6 +174,7 @@ pub struct RedisLoggerConfig {
 
 impl RedisLoggerConfig {
     /// Initiates the builder pattern for creating a `RedisLoggerConfig`.
+    #[must_use]
     pub fn builder() -> RedisLoggerConfigBuilder {
         RedisLoggerConfigBuilder::new()
     }
@@ -192,6 +197,7 @@ impl RedisLoggerConfigBuilder {
     }
 
     /// Sets the Redis client for the configuration. Mandatory.
+    #[must_use]
     pub fn with_connection(mut self, redis_conn: Box<dyn RedisConnection>) -> Self {
         self.redis_conn = Some(redis_conn);
         self
@@ -229,7 +235,11 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Returns
     ///
-    /// A `RedisLoggerConfig` if successful or an error of type RedisLoggerConfigError.
+    /// A `RedisLoggerConfig` if successful or an error of type `RedisLoggerConfigError`.
+    /// 
+    /// # Errors
+    /// 
+    /// see above
     pub fn build(self) -> Result<RedisLoggerConfig, RedisLoggerConfigError> {
         let conn = self.redis_conn.ok_or(RedisLoggerConfigError::ClientNotSet)?;
         if self.channels.is_none() && self.streams.is_none() {

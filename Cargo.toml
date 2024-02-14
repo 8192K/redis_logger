@@ -1,6 +1,6 @@
 [package]
 name = "redis_logger"
-version = "0.3.0"
+version = "0.2.0"
 edition = "2018"
 description = "A logger implementing the log::Log trait that writes log messages to a Redis pub/sub channel, a stream or both using the redis_rs crate"
 repository = "https://github.com/8192K/redis-logger"
@@ -13,11 +13,11 @@ readme = "README.md"
 [dependencies]
 log = { version = "0.4" , features = ["std"] }
 redis = "0.24"
-thiserror = "1.0.57"
-serde_json = { version="1.0.113", optional = true }
+thiserror = "1.0"
+serde_json = { version="1.0", optional = true }
 
 [dev-dependencies]
-mockall = "*"
+mockall = "0.12"
 
 [features]
 default_encoding = ["dep:serde_json"]

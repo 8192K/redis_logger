@@ -1,6 +1,6 @@
 //! # Error Module
 //!
-//! This module defines the `RedisLoggerConfigError` enum, which represents the possible errors that can occur in the RedisLogger configuration.
+//! This module defines the `RedisLoggerConfigError` enum, which represents the possible errors that can occur in the `RedisLogger` configuration.
 //!
 //! ## `RedisLoggerConfigError`
 //!
@@ -16,10 +16,10 @@
 //!
 //! ## Usage
 //!
-//! These errors can be used in `Result` return types to indicate that an operation related to the RedisLogger configuration failed.
+//! These errors can be used in `Result` return types to indicate that an operation related to the `RedisLogger` configuration failed.
 //! The caller can then handle these errors appropriately.
 
-/// Represents the possible errors that can occur in the RedisLogger configuration.
+/// Represents the possible errors that can occur in the `RedisLogger` configuration.
 #[derive(Debug, thiserror::Error)]
 pub enum RedisLoggerConfigError {
     /// Error indicating that the Redis client is not set.
@@ -41,12 +41,12 @@ pub enum RedisLoggerConfigError {
 
 impl PartialEq for RedisLoggerConfigError {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::ClientNotSet, Self::ClientNotSet) => true,
-            (Self::ChannelNotSet, Self::ChannelNotSet) => true,
-            (Self::RedisError(_), Self::RedisError(_)) => true,
-            (Self::SetLoggerError(_), Self::SetLoggerError(_)) => true,
-            _ => false,
-        }
+        matches!(
+            (self, other),
+            (Self::ClientNotSet, Self::ClientNotSet)
+                | (Self::ChannelNotSet, Self::ChannelNotSet)
+                | (Self::RedisError(_), Self::RedisError(_))
+                | (Self::SetLoggerError(_), Self::SetLoggerError(_))
+        )
     }
 }
