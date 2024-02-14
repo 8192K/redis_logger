@@ -16,6 +16,9 @@ redis = "0.24"
 thiserror = "1.0.57"
 serde_json = { version="1.0.113", optional = true }
 
+[dev-dependencies]
+mockall = "*"
+
 [features]
 default_encoding = ["dep:serde_json"]
 
