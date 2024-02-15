@@ -21,7 +21,7 @@ redis_logger = "0.2"
 
 How to use in your application:
 
-Build a `RedisConfig` using the `RedisConfig::builder()` call. Specify a connection and at least one pub/sub or stream channel. Use this configuration to either instantiate a `RedisLogger` instance with `RedisLogger::new` if you wish to use this logger with other loggers (like the [threaded_proxy_logger](https://crates.io/crates/threaded_proxy_logger) crate or [CombinedLogger](https://crates.io/crates/simplelog) logger from the `simplelog` crate) or use the `RedisLogger::init` method to initialize the logger as the only logger for the application.
+Build a `RedisLoggerConfig` using the `RedisLoggerConfigBuilder` methods. Specify a connection and at least one pub/sub or stream channel. Use this configuration to either instantiate a `RedisLogger` instance with `RedisLogger::new` if you wish to use this logger with other loggers (like the [threaded_proxy_logger](https://crates.io/crates/threaded_proxy_logger) crate or [CombinedLogger](https://crates.io/crates/simplelog) logger from the `simplelog` crate) or use the `RedisLogger::init` method to initialize the logger as the only logger for the application.
 
 ## License
 

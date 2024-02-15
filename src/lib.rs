@@ -6,12 +6,12 @@
 //!
 //! `RedisLogger` is the main struct in this module. It implements the `Log` trait, which allows it to be used as a logger in
 //!  applications that use the `log` crate. It logs messages to Redis,
-//!  either by publishing them to a pub/sub channel or by adding them to a stream.
+//!  either by publishing them to any number of pub/sub channels or by adding them to streams or both.
 //!
 //! ## `RedisLoggerConfig`
 //!
 //! `RedisLoggerConfig` is a struct that holds the configuration for a `RedisLogger`.
-//!  It includes a Redis connection, and optionally a list of pub/sub channels and a list of streams to log to,
+//!  It includes a Redis connection, a list of pub/sub channels and/or a list of streams to log to,
 //!  along with encoders for the messages.
 //!
 //! ## `RedisLoggerConfigBuilder`
@@ -22,7 +22,8 @@
 //!
 //! `PubSubEncoder` and `StreamEncoder` are traits for encoding log messages.
 //! They are used by `RedisLogger` to encode the messages before sending them to Redis.
-//! The module provides default implementations of these traits, but users can also provide their own implementations.
+//! The module provides default implementations of these traits when the feature `default_encoding` is enabled,
+//! but users can also provide their own implementations.
 //!
 //! ## Usage
 //!
@@ -34,7 +35,7 @@
 //! This module has a feature flag `default_encoding` that, when enabled, provides default implementations
 //! of `PubSubEncoder` and `StreamEncoder` that encode the log messages as JSON or as a vector of tuples, respectively.
 
-use std::sync::Mutex;
+use std::{marker::PhantomData, sync::Mutex};
 
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use redis::ConnectionLike;
@@ -50,19 +51,19 @@ mod lib_tests;
 /// Trait for encoding log messages to be published to a pub/sub channel.
 pub trait PubSubEncoder: Send + Sync + Sized {
     /// Encodes the given `log::Record` into a byte vector.
-    fn encode(&self, record: &Record<'_>) -> Vec<u8>;
+    fn encode(&self, record: &Record) -> Vec<u8>;
 }
 
 /// Trait for encoding log messages to be added to a Redis stream.
 pub trait StreamEncoder: Send + Sync + Sized {
     /// Encodes the given `log::Record` into a vector of tuples of a field name and the corresponding value as a byte vector.
-    fn encode(&self, record: &Record<'_>) -> Vec<(&'static str, Vec<u8>)>;
+    fn encode(&self, record: &Record) -> Vec<(&'static str, Vec<u8>)>;
 }
 
-/// This is a dummy implementation of the `PubSubEncoder` trait. Cannot be instantiated or used. Necessary as a placeholder when not specifing a pub/sub encoder.
+/// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a pub/sub encoder.
 #[derive(Debug, Clone)]
 pub struct DummyPubSubEncoder {
-    __private: (),
+    __private: PhantomData<()>,
 }
 
 impl PubSubEncoder for DummyPubSubEncoder {
@@ -71,10 +72,10 @@ impl PubSubEncoder for DummyPubSubEncoder {
     }
 }
 
-/// This is a dummy implementation of the `StreamEncoder` trait. Cannot be instantiated or used. Necessary as a placeholder when not specifing a stream encoder.
+/// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a stream encoder.
 #[derive(Debug, Clone)]
 pub struct DummyStreamEncoder {
-    __private: (),
+    __private: PhantomData<()>,
 }
 
 impl StreamEncoder for DummyStreamEncoder {
@@ -197,20 +198,14 @@ where
 
 /// `RedisLoggerConfigBuilder` is a builder for `RedisLoggerConfig`.
 ///  
-/// # Examples
-///
-/// Basic usage:
-///
-/// let builder = RedisLoggerConfigBuilder::new();
-/// let config = builder.build_with_pubsub(connection, channels, encoder);
-///
 /// # Panics
-/// Panics if the channels or streams vectors are empty when building the RedisLoggerConfig.
+///
+/// Panics if the channels or streams vectors are empty when building the `RedisLoggerConfig`.
 #[derive(Debug)]
 pub struct RedisLoggerConfigBuilder;
 
 impl RedisLoggerConfigBuilder {
-    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and a PubSub encoder.
+    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and a Pub/Sub encoder.
     ///
     /// # Arguments
     ///
@@ -220,7 +215,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Returns
     ///
-    /// A `RedisLoggerConfig` with the given connection, channels, and PubSub encoder.
+    /// A `RedisLoggerConfig` with the given connection, channels, and Pub/Sub encoder.
     ///
     /// # Panics
     ///
@@ -244,9 +239,9 @@ impl RedisLoggerConfigBuilder {
         }
     }
 
-    /// Constructs a `RedisLoggerConfig` with a given connection and channels, using the default PubSub encoder.
+    /// Constructs a `RedisLoggerConfig` with a given connection and channels, using the default Pub/Sub encoder.
     ///
-    /// This method is only available when the "default_encoding" feature is enabled.
+    /// This method is only available when the `default_encoding` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -255,7 +250,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Returns
     ///
-    /// A `RedisLoggerConfig` with the given connection and channels, and the default PubSub encoder.
+    /// A `RedisLoggerConfig` with the given connection and channels, and the default Pub/Sub encoder.
     ///
     /// # Panics
     ///
@@ -314,7 +309,7 @@ impl RedisLoggerConfigBuilder {
 
     /// Constructs a `RedisLoggerConfig` with a given connection and streams, using the default Stream encoder.
     ///
-    /// This method is only available when the "default_encoding" feature is enabled.
+    /// This method is only available when the `default_encoding` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -346,7 +341,7 @@ impl RedisLoggerConfigBuilder {
         }
     }
 
-    /// Constructs a `RedisLoggerConfig` with a given connection, channels, streams, a PubSub encoder, and a Stream encoder.
+    /// Constructs a `RedisLoggerConfig` with a given connection, channels, streams, a Pub/Sub encoder, and a Stream encoder.
     ///
     /// # Arguments
     ///
@@ -358,7 +353,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Returns
     ///
-    /// A `RedisLoggerConfig` with the given connection, channels, streams, PubSub encoder, and Stream encoder.
+    /// A `RedisLoggerConfig` with the given connection, channels, streams, Pub/Sub encoder, and Stream encoder.
     ///
     /// # Panics
     ///
@@ -385,9 +380,9 @@ impl RedisLoggerConfigBuilder {
         }
     }
 
-    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams, using the default PubSub and Stream encoders.
+    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams, using the default Pub/Sub and Stream encoders.
     ///
-    /// This method is only available when the "default_encoding" feature is enabled.
+    /// This method is only available when the `default_encoding` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -397,7 +392,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Returns
     ///
-    /// A `RedisLoggerConfig` with the given connection, channels, streams, and the default PubSub and Stream encoders.
+    /// A `RedisLoggerConfig` with the given connection, channels, streams, and the default Pub/Sub and Stream encoders.
     ///
     /// # Panics
     ///
@@ -421,7 +416,7 @@ impl RedisLoggerConfigBuilder {
         }
     }
 
-    fn panic_if_channels_not_set() {
+    const fn panic_if_channels_not_set() {
         panic!("Channels not set in RedisLogger. Set at least one pub/sub channel and/or one stream channel.");
     }
 }

@@ -19,20 +19,24 @@
 //! You can use these default encoders when you don't need to customize the encoding process.
 //! If you need to customize the encoding, you can implement the `PubSubEncoder` and `StreamEncoder` traits yourself.
 
+use std::marker::PhantomData;
+
 use super::{PubSubEncoder, Record, StreamEncoder};
 
 /// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
 #[derive(Debug, Clone)]
-pub struct DefaultPubSubEncoder;
+pub struct DefaultPubSubEncoder {
+    __private: PhantomData<()>,
+}
 
 impl DefaultPubSubEncoder {
-    pub fn new() -> Self {
-        Self {}
+    pub const fn new() -> Self {
+        Self { __private: PhantomData }
     }
 }
 
 impl PubSubEncoder for DefaultPubSubEncoder {
-    fn encode<'a>(&self, record: &Record<'a>) -> Vec<u8> {
+    fn encode(&self, record: &Record) -> Vec<u8> {
         let json = serde_json::json!({
          "level": record.level().as_str(),
          "args": record.args().to_string(),
@@ -47,16 +51,18 @@ impl PubSubEncoder for DefaultPubSubEncoder {
 
 /// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples.
 #[derive(Debug, Clone)]
-pub struct DefaultStreamEncoder;
+pub struct DefaultStreamEncoder {
+    __private: PhantomData<()>,
+}
 
 impl DefaultStreamEncoder {
-    pub fn new() -> Self {
-        Self {}
+    pub const fn new() -> Self {
+        Self { __private: PhantomData }
     }
 }
 
 impl StreamEncoder for DefaultStreamEncoder {
-    fn encode<'a>(&self, record: &Record<'a>) -> Vec<(&'static str, Vec<u8>)> {
+    fn encode(&self, record: &Record) -> Vec<(&'static str, Vec<u8>)> {
         vec![
             ("level", record.level().as_str().to_owned().into_bytes()),
             ("args", record.args().to_string().into_bytes()),
