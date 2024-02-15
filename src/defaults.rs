@@ -22,11 +22,12 @@
 use super::{PubSubEncoder, Record, StreamEncoder};
 
 /// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
+#[derive(Debug, Clone)]
 pub struct DefaultPubSubEncoder;
 
 impl DefaultPubSubEncoder {
-    pub fn new() -> Box<Self> {
-        Box::new(Self {})
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -42,19 +43,15 @@ impl PubSubEncoder for DefaultPubSubEncoder {
         });
         json.to_string().into_bytes()
     }
-
-    #[cfg(test)]
-    fn name(&self) -> &'static str {
-        "DefaultPubSubEncoder"
-    }
 }
 
 /// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples.
+#[derive(Debug, Clone)]
 pub struct DefaultStreamEncoder;
 
 impl DefaultStreamEncoder {
-    pub fn new() -> Box<Self> {
-        Box::new(Self {})
+    pub fn new() -> Self {
+        Self {}
     }
 }
 
@@ -68,11 +65,6 @@ impl StreamEncoder for DefaultStreamEncoder {
             ("file", record.file().unwrap_or("null").to_owned().into_bytes()),
             ("line", record.line().unwrap_or(0).to_string().into_bytes()),
         ]
-    }
-
-    #[cfg(test)]
-    fn name(&self) -> &'static str {
-        "DefaultStreamEncoder"
     }
 }
 
