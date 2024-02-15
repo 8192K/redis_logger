@@ -13,9 +13,6 @@ mock! {
     }
     unsafe impl Sync for RedisConnection {}
     unsafe impl Send for RedisConnection {}
-    impl Clone for RedisConnection {
-        fn clone(&self) -> Self;
-    }
 }
 
 const DUMMY_PUBSUB_ENCODER: DummyPubSubEncoder = DummyPubSubEncoder { __private: () };
