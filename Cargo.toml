@@ -1,6 +1,6 @@
 [package]
 name = "redis_logger"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2018"
 description = "A logger implementing the log::Log trait that writes log messages to a Redis pub/sub channel, a stream or both using the redis_rs crate"
 repository = "https://github.com/8192K/redis_logger"

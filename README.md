@@ -1,8 +1,8 @@
-# redis-logger
+# redis_logger
 
-[![Crates.io](https://img.shields.io/crates/v/redis-logger.svg)](https://crates.io/crates/redis-logger)
-[![Docs](https://docs.rs/redis-logger/badge.svg)](https://docs.rs/redis-logger)
-[![MIT/APACHE-2.0](https://img.shields.io/crates/l/redis-logger.svg)](https://crates.io/crates/redis-logger)
+[![Crates.io](https://img.shields.io/crates/v/redis_logger.svg)](https://crates.io/crates/redis_logger)
+[![Docs](https://docs.rs/redis_logger/badge.svg)](https://docs.rs/redis_logger)
+[![MIT/APACHE-2.0](https://img.shields.io/crates/l/redis_logger.svg)](https://crates.io/crates/redis_logger)
 
 This `log::Log` implementation allows to log to a Redis server. It supports writing to any number of pub/sub channels or streams or both.
 
