@@ -111,7 +111,7 @@ fn test_build_pubsub_and_streams_but_no_channels() {
     );
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 fn test_build_only_streams_default() {
     use std::any::{Any, TypeId};
@@ -134,7 +134,7 @@ fn test_build_only_streams_default() {
     assert!(config.connection.lock().is_ok());
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 fn test_build_only_pubsub_default() {
     use std::any::{Any, TypeId};
@@ -157,7 +157,7 @@ fn test_build_only_pubsub_default() {
     assert!(config.connection.lock().is_ok());
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 fn test_build_pubsub_and_streams_default() {
     use std::any::{Any, TypeId};
@@ -189,7 +189,7 @@ fn test_build_pubsub_and_streams_default() {
     assert!(config.connection.lock().is_ok());
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 #[should_panic]
 fn test_build_only_pubsub_but_no_channels_default() {
@@ -199,7 +199,7 @@ fn test_build_only_pubsub_but_no_channels_default() {
     RedisLoggerConfigBuilder::build_with_pubsub_default(mock_conn, channels);
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 #[should_panic]
 fn test_build_only_streams_but_no_channels_default() {
@@ -209,7 +209,7 @@ fn test_build_only_streams_but_no_channels_default() {
     RedisLoggerConfigBuilder::build_with_streams_default(mock_conn, channels);
 }
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 #[test]
 #[should_panic]
 fn test_build_pubsub_and_streams_but_no_channels_default() {

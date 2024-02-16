@@ -24,7 +24,7 @@ use std::marker::PhantomData;
 use super::{PubSubEncoder, Record, StreamEncoder};
 
 /// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DefaultPubSubEncoder {
     __private: PhantomData<()>,
 }
@@ -50,7 +50,7 @@ impl PubSubEncoder for DefaultPubSubEncoder {
 }
 
 /// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DefaultStreamEncoder {
     __private: PhantomData<()>,
 }
