@@ -1,4 +1,4 @@
-//! # Lib Module
+//! # Redis Logger
 //!
 //! This module provides a logger implementation that logs messages to Redis using the `log` crate's `Log` trait.
 //!
@@ -69,7 +69,7 @@ pub struct DummyPubSubEncoder {
 
 #[doc(hidden)]
 impl PubSubEncoder for DummyPubSubEncoder {
-    fn encode(&self, _record: &Record<'_>) -> Vec<u8> {
+    fn encode(&self, _record: &Record) -> Vec<u8> {
         panic!()
     }
 }
@@ -83,7 +83,7 @@ pub struct DummyStreamEncoder {
 
 #[doc(hidden)]
 impl StreamEncoder for DummyStreamEncoder {
-    fn encode(&self, _record: &Record<'_>) -> Vec<(&'static str, Vec<u8>)> {
+    fn encode(&self, _record: &Record) -> Vec<(&'static str, Vec<u8>)> {
         panic!()
     }
 }
@@ -206,7 +206,9 @@ where
 ///
 /// Panics if the channels or streams vectors are empty when building the `RedisLoggerConfig`.
 #[derive(Debug)]
-pub struct RedisLoggerConfigBuilder;
+pub struct RedisLoggerConfigBuilder {
+    __private: PhantomData<()>,
+}
 
 impl RedisLoggerConfigBuilder {
     /// Constructs a `RedisLoggerConfig` with a given connection, channels, and a Pub/Sub encoder.
