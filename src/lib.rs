@@ -229,9 +229,7 @@ impl RedisLoggerConfigBuilder {
         CONN: ConnectionLike + Send + Sync,
         PUBSUB: PubSubEncoder,
     {
-        if channels.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!channels.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: Some((channels, encoder)),
@@ -263,9 +261,7 @@ impl RedisLoggerConfigBuilder {
     where
         CONN: ConnectionLike + Send + Sync,
     {
-        if channels.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!channels.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: Some((channels, DefaultPubSubEncoder::new())),
@@ -297,9 +293,7 @@ impl RedisLoggerConfigBuilder {
         CONN: ConnectionLike + Send + Sync,
         STREAM: StreamEncoder,
     {
-        if streams.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!streams.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: None,
@@ -331,9 +325,7 @@ impl RedisLoggerConfigBuilder {
     where
         CONN: ConnectionLike + Send + Sync,
     {
-        if streams.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!streams.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: None,
@@ -370,9 +362,7 @@ impl RedisLoggerConfigBuilder {
         PUBSUB: PubSubEncoder,
         STREAM: StreamEncoder,
     {
-        if channels.is_empty() && streams.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!channels.is_empty() && !streams.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: Some((channels, pubsub_encoder)),
@@ -406,9 +396,7 @@ impl RedisLoggerConfigBuilder {
     where
         CONN: ConnectionLike + Send + Sync,
     {
-        if channels.is_empty() && streams.is_empty() {
-            Self::panic_if_channels_not_set();
-        }
+        Self::check_args(!channels.is_empty() && !streams.is_empty());
         RedisLoggerConfig {
             connection: Mutex::new(connection),
             channels: Some((channels, DefaultPubSubEncoder::new())),
@@ -416,7 +404,7 @@ impl RedisLoggerConfigBuilder {
         }
     }
 
-    const fn panic_if_channels_not_set() {
-        panic!("Channels not set in RedisLogger. Set at least one pub/sub channel and/or one stream channel.");
+    const fn check_args(value: bool) {
+        assert!(value, "Channels not set in RedisLogger. Set at least one pub/sub channel and/or one stream channel.");
     }
 }
