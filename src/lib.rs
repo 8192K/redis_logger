@@ -62,10 +62,12 @@ pub trait StreamEncoder: Send + Sync + Sized {
 
 /// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a pub/sub encoder.
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct DummyPubSubEncoder {
     __private: PhantomData<()>,
 }
 
+#[doc(hidden)]
 impl PubSubEncoder for DummyPubSubEncoder {
     fn encode(&self, _record: &Record<'_>) -> Vec<u8> {
         panic!()
@@ -74,10 +76,12 @@ impl PubSubEncoder for DummyPubSubEncoder {
 
 /// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a stream encoder.
 #[derive(Debug)]
+#[doc(hidden)]
 pub struct DummyStreamEncoder {
     __private: PhantomData<()>,
 }
 
+#[doc(hidden)]
 impl StreamEncoder for DummyStreamEncoder {
     fn encode(&self, _record: &Record<'_>) -> Vec<(&'static str, Vec<u8>)> {
         panic!()
