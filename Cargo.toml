@@ -7,7 +7,7 @@ repository = "https://github.com/8192K/redis_logger"
 authors = ["Sebastian Frehmel <8192K@sebastianfrehmel.de>"]
 license = "MIT/Apache-2.0"
 categories = ["development-tools", "development-tools::debugging", "database"]
-keywords = ["log", "logger", "logging", "redis", "redis_rs"]
+keywords = ["log", "logger", "logging", "redis", "pubsub"]
 readme = "README.md"
 
 [dependencies]
