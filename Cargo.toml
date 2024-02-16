@@ -20,7 +20,7 @@ serde_json = { version="1.0", optional = true }
 mockall = "0.12"
 
 [features]
-default_encoding = ["dep:serde_json"]
+default_encoders = ["dep:serde_json"]
 
 [profile.release]
 lto = true

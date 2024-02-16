@@ -22,7 +22,7 @@
 //!
 //! `PubSubEncoder` and `StreamEncoder` are traits for encoding log messages.
 //! They are used by `RedisLogger` to encode the messages before sending them to Redis.
-//! The module provides default implementations of these traits when the feature `default_encoding` is enabled,
+//! The module provides default implementations of these traits when the feature `default_encoders` is enabled,
 //! but users can also provide their own implementations.
 //!
 //! ## Usage
@@ -32,7 +32,7 @@
 //!
 //! ## Features
 //!
-//! This module has a feature flag `default_encoding` that, when enabled, provides default implementations
+//! This module has a feature flag `default_encoders` that, when enabled, provides default implementations
 //! of `PubSubEncoder` and `StreamEncoder` that encode the log messages as JSON or as a vector of tuples, respectively.
 
 use std::{marker::PhantomData, sync::Mutex};
@@ -40,9 +40,9 @@ use std::{marker::PhantomData, sync::Mutex};
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use redis::ConnectionLike;
 
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 mod defaults;
-#[cfg(feature = "default_encoding")]
+#[cfg(feature = "default_encoders")]
 pub use defaults::*;
 
 #[cfg(test)]
@@ -239,7 +239,7 @@ impl RedisLoggerConfigBuilder {
 
     /// Constructs a `RedisLoggerConfig` with a given connection and channels, using the default Pub/Sub encoder.
     ///
-    /// This method is only available when the `default_encoding` feature is enabled.
+    /// This method is only available when the `default_encoders` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -253,7 +253,7 @@ impl RedisLoggerConfigBuilder {
     /// # Panics
     ///
     /// Panics if the channels vector is empty
-    #[cfg(feature = "default_encoding")]
+    #[cfg(feature = "default_encoders")]
     pub fn build_with_pubsub_default<CONN>(
         connection: CONN,
         channels: Vec<String>,
@@ -303,7 +303,7 @@ impl RedisLoggerConfigBuilder {
 
     /// Constructs a `RedisLoggerConfig` with a given connection and streams, using the default Stream encoder.
     ///
-    /// This method is only available when the `default_encoding` feature is enabled.
+    /// This method is only available when the `default_encoders` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -317,7 +317,7 @@ impl RedisLoggerConfigBuilder {
     /// # Panics
     ///
     /// Panics if the streams vector is empty
-    #[cfg(feature = "default_encoding")]
+    #[cfg(feature = "default_encoders")]
     pub fn build_with_streams_default<CONN>(
         connection: CONN,
         streams: Vec<String>,
@@ -372,7 +372,7 @@ impl RedisLoggerConfigBuilder {
 
     /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams, using the default Pub/Sub and Stream encoders.
     ///
-    /// This method is only available when the `default_encoding` feature is enabled.
+    /// This method is only available when the `default_encoders` feature is enabled.
     ///
     /// # Arguments
     ///
@@ -387,7 +387,7 @@ impl RedisLoggerConfigBuilder {
     /// # Panics
     ///
     /// Panics if the streams and channels vectors are both empty
-    #[cfg(feature = "default_encoding")]
+    #[cfg(feature = "default_encoders")]
     pub fn build_with_pubsub_and_streams_default<CONN>(
         connection: CONN,
         channels: Vec<String>,
