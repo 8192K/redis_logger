@@ -411,6 +411,29 @@ impl RedisLoggerConfigBuilder {
     }
 
     const fn check_args(value: bool) {
-        assert!(value, "Channels not set in RedisLogger. Set at least one pub/sub channel and/or one stream channel.");
+        assert!(
+            value,
+            "Channels not set in RedisLogger. Set at least one pub/sub channel and/or one stream channel."
+        );
+    }
+}
+
+#[cfg(feature = "shared_logger")]
+impl<CONN, PUBSUB, STREAM> simplelog::SharedLogger for RedisLogger<CONN, PUBSUB, STREAM>
+where
+    CONN: ConnectionLike + Send + Sync + 'static,
+    PUBSUB: PubSubEncoder + 'static,
+    STREAM: StreamEncoder + 'static,
+{
+    fn level(&self) -> log::LevelFilter {
+        self.level
+    }
+
+    fn config(&self) -> Option<&simplelog::Config> {
+        None
+    }
+
+    fn as_log(self: Box<Self>) -> Box<dyn Log> {
+        self
     }
 }

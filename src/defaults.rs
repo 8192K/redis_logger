@@ -21,6 +21,8 @@
 
 use std::marker::PhantomData;
 
+use serializable_log_record::SerializableLogRecord;
+
 use super::{PubSubEncoder, Record, StreamEncoder};
 
 /// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
@@ -37,15 +39,8 @@ impl DefaultPubSubEncoder {
 
 impl PubSubEncoder for DefaultPubSubEncoder {
     fn encode(&self, record: &Record) -> Vec<u8> {
-        let json = serde_json::json!({
-         "level": record.level().as_str(),
-         "args": record.args().to_string(),
-         "module_path": record.module_path().map(str::to_owned),
-         "target": record.target().to_owned(),
-         "file": record.file().map(str::to_owned),
-         "line": record.line()
-        });
-        json.to_string().into_bytes()
+        let ser_record = SerializableLogRecord::from(record);
+        serde_json::to_string(&ser_record).unwrap().into_bytes()
     }
 }
 
@@ -66,8 +61,8 @@ impl StreamEncoder for DefaultStreamEncoder {
         vec![
             ("level", record.level().as_str().to_owned().into_bytes()),
             ("args", record.args().to_string().into_bytes()),
-            ("module_path", record.module_path().unwrap_or("null").to_owned().into_bytes()),
             ("target", record.target().to_owned().into_bytes()),
+            ("module_path", record.module_path().unwrap_or("null").to_owned().into_bytes()),
             ("file", record.file().unwrap_or("null").to_owned().into_bytes()),
             ("line", record.line().unwrap_or(0).to_string().into_bytes()),
         ]
@@ -85,13 +80,13 @@ mod tests {
         let record = Record::builder()
             .level(Level::Info)
             .args(format_args!("Test message"))
-            .module_path(Some("my_module"))
             .target("my_target")
+            .module_path(Some("my_module"))
             .file(Some("my_file.rs"))
             .line(Some(42))
             .build();
 
-        let expected = r#"{"args":"Test message","file":"my_file.rs","level":"INFO","line":42,"module_path":"my_module","target":"my_target"}"#;
+        let expected = r#"{"level":"INFO","args":"Test message","target":"my_target","module_path":"my_module","file":"my_file.rs","line":42}"#;
         let expected_bytes = expected.as_bytes().to_vec();
         assert_eq!(encoder.encode(&record), expected_bytes);
     }
@@ -102,8 +97,8 @@ mod tests {
         let record = Record::builder()
             .level(Level::Error)
             .args(format_args!("Error message"))
-            .module_path(None)
             .target("my_target")
+            .module_path(None)
             .file(Some("my_file.rs"))
             .line(None)
             .build();
@@ -111,8 +106,8 @@ mod tests {
         let expected = vec![
             ("level", b"ERROR".to_vec()),
             ("args", b"Error message".to_vec()),
-            ("module_path", b"null".to_vec()),
             ("target", b"my_target".to_vec()),
+            ("module_path", b"null".to_vec()),
             ("file", b"my_file.rs".to_vec()),
             ("line", b"0".to_vec()),
         ];
