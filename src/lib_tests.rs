@@ -15,8 +15,8 @@ mock! {
     unsafe impl Send for RedisConnection {}
 }
 
-const DUMMY_PUBSUB_ENCODER: DummyPubSubEncoder = DummyPubSubEncoder { __private: PhantomData };
-const DUMMY_STREAM_ENCODER: DummyStreamEncoder = DummyStreamEncoder { __private: PhantomData };
+const DUMMY_PUBSUB_ENCODER: DummyPubSubEncoder = DummyPubSubEncoder {};
+const DUMMY_STREAM_ENCODER: DummyStreamEncoder = DummyStreamEncoder {};
 
 #[test]
 fn test_build_only_streams() {

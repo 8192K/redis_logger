@@ -30,12 +30,52 @@
 //! To use this logger, you need to create a `RedisLoggerConfig` (using `RedisLoggerConfigBuilder`), create a `RedisLogger` with the config,
 //! either by calling `::new` or `::init`, the latter of which also sets the logger as the global logger.
 //!
+//! We recommend using this logger with the `parallel_logger` crate to avoid blocking the main thread when logging to Redis.
+//!
+//! ## Example
+//! This example shows how to implement a `PubSubEncoder` that encodes log messages as a byte vector using the `bincode` crate. It also
+//! shows how to configure `RedisLogger` to use this encoder while being part of multiple loggers that run on a separate thread using `parallel_logger`.
+//! ```rust,ignore
+//! struct BincodeRedisEncoder;
+//! 
+//! impl PubSubEncoder for BincodeRedisEncoder {
+//!     fn encode(&self, record: &log::Record) -> Vec<u8> {
+//!         let mut slice = [0u8; 2000];
+//!         let message = SerializableLogRecord::from(record);
+//!         let size = bincode::encode_into_slice(message, &mut slice, BINCODE_CONFIG).unwrap();
+//!         let slice = &slice[..size];
+//!         slice.to_vec()
+//!     }
+//! }
+//! 
+//! fn main() {
+//!     let redis_client = redis::Client::open(REDIS_URL).unwrap();
+//!     let redis_connection = redis_client.get_connection().unwrap();
+//! 
+//!     ParallelLogger::init(
+//!         log::LevelFilter::Debug,
+//!         ParallelMode::Sequential,
+//!         vec![
+//!             FileLogger::new(LevelFilter::Debug, "log_file.log"),
+//!             TerminalLogger::new(LevelFilter::Info),
+//!             RedisLogger::new(
+//!                 LevelFilter::Debug,
+//!                 RedisLoggerConfigBuilder::build_with_pubsub(redis_connection, vec!["logging".into()], BincodeRedisEncoder {}),
+//!             ),
+//!         ],
+//!     );
+//! }
+//! ```
+//! Using `RedisLogger::init` insted of `RedisLogger::new` would allow the logger to be used as the only global logger.
+//!
 //! ## Features
 //!
 //! This module has a feature flag `default_encoders` that, when enabled, provides default implementations
 //! of `PubSubEncoder` and `StreamEncoder` that encode the log messages as JSON or as a vector of tuples, respectively.
+//!
+//! Another feature flag `shared_logger` implements the `simplelog::SharedLogger` trait for `RedisLogger`. This enables use in a `simplelog::CombinedLogger`.
 
-use std::{marker::PhantomData, sync::Mutex};
+use std::sync::Mutex;
 
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use redis::ConnectionLike;
@@ -57,15 +97,14 @@ pub trait PubSubEncoder: Send + Sync + Sized {
 /// Trait for encoding log messages to be added to a Redis stream.
 pub trait StreamEncoder: Send + Sync + Sized {
     /// Encodes the given `log::Record` into a vector of tuples of a field name and the corresponding value as a byte vector.
-    fn encode(&self, record: &Record) -> Vec<(&'static str, Vec<u8>)>;
+    fn encode(&self, record: &Record) -> Vec<(String, Vec<u8>)>;
 }
 
 /// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a pub/sub encoder.
 #[derive(Debug)]
 #[doc(hidden)]
-pub struct DummyPubSubEncoder {
-    __private: PhantomData<()>,
-}
+#[non_exhaustive]
+pub struct DummyPubSubEncoder {}
 
 #[doc(hidden)]
 impl PubSubEncoder for DummyPubSubEncoder {
@@ -77,13 +116,12 @@ impl PubSubEncoder for DummyPubSubEncoder {
 /// Placeholder. Cannot be instantiated or used. Necessary as a placeholder when not specifing a stream encoder.
 #[derive(Debug)]
 #[doc(hidden)]
-pub struct DummyStreamEncoder {
-    __private: PhantomData<()>,
-}
+#[non_exhaustive]
+pub struct DummyStreamEncoder {}
 
 #[doc(hidden)]
 impl StreamEncoder for DummyStreamEncoder {
-    fn encode(&self, _record: &Record) -> Vec<(&'static str, Vec<u8>)> {
+    fn encode(&self, _record: &Record) -> Vec<(String, Vec<u8>)> {
         panic!()
     }
 }
@@ -206,9 +244,8 @@ where
 ///
 /// Panics if the channels or streams vectors are empty when building the `RedisLoggerConfig`.
 #[derive(Debug)]
-pub struct RedisLoggerConfigBuilder {
-    __private: PhantomData<()>,
-}
+#[non_exhaustive]
+pub struct RedisLoggerConfigBuilder {}
 
 impl RedisLoggerConfigBuilder {
     /// Constructs a `RedisLoggerConfig` with a given connection, channels, and a Pub/Sub encoder.

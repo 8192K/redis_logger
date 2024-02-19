@@ -12,14 +12,12 @@
 //!
 //! `DefaultStreamEncoder` is a default implementation of the `StreamEncoder` trait.
 //! It encodes a `log::Record` into a vector of tuples, where each tuple contains a field name from the `Record` and the
-//! corresponding value as a byte vector. If a field in the `Record` is `None`, it uses a default value.
+//! corresponding value as a byte vector. If a field in the `Record` is `None`, the byte vector is empty.
 //!
 //! ## Usage
 //!
 //! You can use these default encoders when you don't need to customize the encoding process.
 //! If you need to customize the encoding, you can implement the `PubSubEncoder` and `StreamEncoder` traits yourself.
-
-use std::marker::PhantomData;
 
 use serializable_log_record::SerializableLogRecord;
 
@@ -27,13 +25,12 @@ use super::{PubSubEncoder, Record, StreamEncoder};
 
 /// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
 #[derive(Debug)]
-pub struct DefaultPubSubEncoder {
-    __private: PhantomData<()>,
-}
+#[non_exhaustive]
+pub struct DefaultPubSubEncoder {}
 
 impl DefaultPubSubEncoder {
     pub const fn new() -> Self {
-        Self { __private: PhantomData }
+        Self {}
     }
 }
 
@@ -44,28 +41,27 @@ impl PubSubEncoder for DefaultPubSubEncoder {
     }
 }
 
-/// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples.
+/// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples of field name and bytes.
 #[derive(Debug)]
-pub struct DefaultStreamEncoder {
-    __private: PhantomData<()>,
-}
+#[non_exhaustive]
+pub struct DefaultStreamEncoder {}
 
 impl DefaultStreamEncoder {
     pub const fn new() -> Self {
-        Self { __private: PhantomData }
+        Self {}
     }
 }
 
 impl StreamEncoder for DefaultStreamEncoder {
-    fn encode(&self, record: &Record) -> Vec<(&'static str, Vec<u8>)> {
-        vec![
-            ("level", record.level().as_str().to_owned().into_bytes()),
-            ("args", record.args().to_string().into_bytes()),
-            ("target", record.target().to_owned().into_bytes()),
-            ("module_path", record.module_path().unwrap_or("null").to_owned().into_bytes()),
-            ("file", record.file().unwrap_or("null").to_owned().into_bytes()),
-            ("line", record.line().unwrap_or(0).to_string().into_bytes()),
-        ]
+    fn encode(&self, record: &Record) -> Vec<(String, Vec<u8>)> {
+        let ser_record = SerializableLogRecord::from(record);
+        serde_json::to_value(&ser_record)
+            .unwrap_or_else(|_| serde_json::json!({}))
+            .as_object()
+            .unwrap()
+            .iter()
+            .map(|(k, v)| (k.clone(), v.as_str().unwrap_or("").to_owned().into_bytes()))
+            .collect()
     }
 }
 
@@ -104,12 +100,12 @@ mod tests {
             .build();
 
         let expected = vec![
-            ("level", b"ERROR".to_vec()),
-            ("args", b"Error message".to_vec()),
-            ("target", b"my_target".to_vec()),
-            ("module_path", b"null".to_vec()),
-            ("file", b"my_file.rs".to_vec()),
-            ("line", b"0".to_vec()),
+            ("args".to_owned(), b"Error message".to_vec()),
+            ("file".to_owned(), b"my_file.rs".to_vec()),
+            ("level".to_owned(), b"ERROR".to_vec()),
+            ("line".to_owned(), b"".to_vec()),
+            ("module_path".to_owned(), b"".to_vec()),
+            ("target".to_owned(), b"my_target".to_vec()),
         ];
 
         assert_eq!(encoder.encode(&record), expected);
