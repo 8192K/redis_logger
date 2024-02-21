@@ -27,13 +27,16 @@ Build a `RedisLoggerConfig` using the `RedisLoggerConfigBuilder` methods. Specif
 
 A simple example using the `default_encoders` feature and setting the `RedisLogger` as the only logger would look like this:
 ```rust
-let redis_client = redis::Client::open(REDIS_URL).unwrap();
-let redis_connection = redis_client.get_connection().unwrap();
-
 fn main() {
+    let redis_client = redis::Client::open(REDIS_URL).unwrap();
+    let redis_connection = redis_client.get_connection().unwrap();
+
     RedisLogger::init(
         LevelFilter::Debug,
-        RedisLoggerConfigBuilder::build_with_pubsub_default(redis_connection, vec!["logging".into()]),
+        RedisLoggerConfigBuilder::build_with_pubsub_default(
+            redis_connection,
+            vec!["logging".into()],
+        ),
     );
 }
 ```
@@ -64,12 +67,21 @@ fn main() {
             TerminalLogger::new(LevelFilter::Info),
             RedisLogger::new(
                 LevelFilter::Debug,
-                RedisLoggerConfigBuilder::build_with_pubsub(redis_connection, vec!["logging".into()], BincodeRedisEncoder {}),
+                RedisLoggerConfigBuilder::build_with_pubsub(
+                    redis_connection,
+                    vec!["logging".into()],
+                    BincodeRedisEncoder {},
+                ),
             ),
         ],
     );
 }
 ```
+
+## Roadmap
+
+- Support other Redis crates than `redis_rs` (like `fred`).
+- Support atomic pipelines when calling Redis.
 
 ## License
 

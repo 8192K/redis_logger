@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! # Redis Logger
 //!
 //! This module provides a logger implementation that logs messages to Redis using the `log` crate's `Log` trait.
@@ -60,7 +62,11 @@
 //!             TerminalLogger::new(LevelFilter::Info),
 //!             RedisLogger::new(
 //!                 LevelFilter::Debug,
-//!                 RedisLoggerConfigBuilder::build_with_pubsub(redis_connection, vec!["logging".into()], BincodeRedisEncoder {}),
+//!                 RedisLoggerConfigBuilder::build_with_pubsub(
+//!                     redis_connection,
+//!                     vec!["logging".into()],
+//!                     BincodeRedisEncoder {},
+//!                 ),
 //!             ),
 //!         ],
 //!     );
@@ -80,6 +86,7 @@ use std::sync::Mutex;
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
 use redis::ConnectionLike;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "default_encoders")))]
 #[cfg(feature = "default_encoders")]
 mod defaults;
 #[cfg(feature = "default_encoders")]
@@ -455,6 +462,7 @@ impl RedisLoggerConfigBuilder {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "shared_logger")))]
 #[cfg(feature = "shared_logger")]
 impl<CONN, PUBSUB, STREAM> simplelog::SharedLogger for RedisLogger<CONN, PUBSUB, STREAM>
 where
