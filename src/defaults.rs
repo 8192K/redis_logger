@@ -1,29 +1,17 @@
 //! # Defaults Module
 //!
 //! This module provides default implementations for the `PubSubEncoder` and `StreamEncoder` traits.
-//!
-//! ## `DefaultPubSubEncoder`
-//!
-//! `DefaultPubSubEncoder` is a default implementation of the `PubSubEncoder` trait.
-//! It encodes a `log::Record` into a JSON object, where each field in the `Record` becomes a key-value pair in the JSON object.
-//! The JSON object is then converted into a byte vector.
-//!
-//! ## `DefaultStreamEncoder`
-//!
-//! `DefaultStreamEncoder` is a default implementation of the `StreamEncoder` trait.
-//! It encodes a `log::Record` into a vector of tuples, where each tuple contains a field name from the `Record` and the
-//! corresponding value as a byte vector. If a field in the `Record` is `None`, the byte vector is empty.
-//!
-//! ## Usage
-//!
-//! You can use these default encoders when you don't need to customize the encoding process.
-//! If you need to customize the encoding, you can implement the `PubSubEncoder` and `StreamEncoder` traits yourself.
 
 use serializable_log_record::SerializableLogRecord;
 
 use super::{PubSubEncoder, Record, StreamEncoder};
 
-/// Default implementation of the `PubSubEncoder` trait converting the incoming `log::Record` into a JSON object.
+/// `DefaultPubSubEncoder` is a default implementation of the `PubSubEncoder` trait.
+/// It encodes a `log::Record` into a JSON object, where each field in the `Record` becomes a key-value pair in the JSON object.
+/// The JSON object is then converted into a byte vector.
+///
+/// You can use these default encoders when you don't need to customize the encoding process.
+/// If you need to customize the encoding, you can implement the `PubSubEncoder` and `StreamEncoder` traits yourself.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct DefaultPubSubEncoder {}
@@ -41,7 +29,12 @@ impl PubSubEncoder for DefaultPubSubEncoder {
     }
 }
 
-/// Default implementation of the `StreamEncoder` trait converting the incoming `log::Record` into a vector of tuples of field name and bytes.
+/// `DefaultStreamEncoder` is a default implementation of the `StreamEncoder` trait.
+/// It encodes a `log::Record` into a vector of tuples, where each tuple contains a field name from the `Record` and the
+/// corresponding value as a byte vector. If a field in the `Record` is `None`, the byte vector is empty.
+///
+/// You can use these default encoders when you don't need to customize the encoding process.
+/// If you need to customize the encoding, you can implement the `PubSubEncoder` and `StreamEncoder` traits yourself.
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct DefaultStreamEncoder {}
