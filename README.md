@@ -17,8 +17,7 @@ Add the dependency to your `Cargo.toml`:
 ```toml
 [dependencies]
 log = "0.4"
-redis = "0.24"
-redis_logger = "0.3"
+redis_logger = "0.4"
 ```
 
 How to use in your application:
@@ -28,15 +27,12 @@ Build a `RedisLoggerConfig` using the `RedisLoggerConfigBuilder` methods. Specif
 A simple example using the `default_encoders` feature and setting the `RedisLogger` as the only logger would look like this:
 ```rust
 fn main() {
-    let redis_client = redis::Client::open(REDIS_URL).unwrap();
-    let redis_connection = redis_client.get_connection().unwrap();
-
     RedisLogger::init(
         LevelFilter::Debug,
-        RedisLoggerConfigBuilder::build_with_pubsub_default(
-            redis_connection,
+        RedisLoggerConfigBuilder::with_pubsub_default(
+            REDIS_URL.to_string(),
             vec!["logging".into()],
-        ),
+        ).build(),
     );
 }
 ```
@@ -56,9 +52,6 @@ impl PubSubEncoder for BincodeRedisEncoder {
 }
  
 fn main() {
-    let redis_client = redis::Client::open(REDIS_URL).unwrap();
-    let redis_connection = redis_client.get_connection().unwrap();
-
     ParallelLogger::init(
         log::LevelFilter::Debug,
         ParallelMode::Sequential,
@@ -67,11 +60,11 @@ fn main() {
             TerminalLogger::new(LevelFilter::Info),
             RedisLogger::new(
                 LevelFilter::Debug,
-                RedisLoggerConfigBuilder::build_with_pubsub(
-                    redis_connection,
+                RedisLoggerConfigBuilder::with_pubsub(
+                    REDIS_URL.to_string(),
                     vec!["logging".into()],
                     BincodeRedisEncoder {},
-                ),
+                ).build(),
             ),
         ],
     );
@@ -80,7 +73,6 @@ fn main() {
 
 ## Roadmap
 
-- Support other Redis crates than `redis_rs` (like `fred`).
 - Support atomic pipelines when calling Redis.
 
 ## License
