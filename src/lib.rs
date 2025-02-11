@@ -39,7 +39,7 @@
 //! shows how to configure `RedisLogger` to use this encoder while being part of multiple loggers that run on a separate thread using `parallel_logger`.
 //! ```rust,ignore
 //! struct BincodeRedisEncoder;
-//! 
+//!
 //! impl PubSubEncoder for BincodeRedisEncoder {
 //!     fn encode(&self, record: &log::Record) -> Vec<u8> {
 //!         let mut slice = [0u8; 2000];
@@ -49,11 +49,8 @@
 //!         slice.to_vec()
 //!     }
 //! }
-//! 
+//!
 //! fn main() {
-//!     let redis_client = redis::Client::open(REDIS_URL).unwrap();
-//!     let redis_connection = redis_client.get_connection().unwrap();
-//! 
 //!     ParallelLogger::init(
 //!         log::LevelFilter::Debug,
 //!         ParallelMode::Sequential,
@@ -62,11 +59,11 @@
 //!             TerminalLogger::new(LevelFilter::Info),
 //!             RedisLogger::new(
 //!                 LevelFilter::Debug,
-//!                 RedisLoggerConfigBuilder::build_with_pubsub(
-//!                     redis_connection,
+//!                 RedisLoggerConfigBuilder::with_pubsub(
+//!                     REDIS_URL.to_string(),
 //!                     vec!["logging".into()],
 //!                     BincodeRedisEncoder {},
-//!                 ),
+//!                 ).build(),
 //!             ),
 //!         ],
 //!     );
@@ -81,10 +78,10 @@
 //!
 //! Another feature flag `shared_logger` implements the `simplelog::SharedLogger` trait for `RedisLogger`. This enables use in a `simplelog::CombinedLogger`.
 
-use std::sync::Mutex;
+use std::{fmt::Debug, sync::Mutex};
 
 use log::{LevelFilter, Log, Metadata, Record, SetLoggerError};
-use redis::ConnectionLike;
+use redis::{Connection, ConnectionLike};
 
 #[cfg_attr(docsrs, doc(cfg(feature = "default_encoders")))]
 #[cfg(feature = "default_encoders")]
@@ -135,19 +132,17 @@ impl StreamEncoder for DummyStreamEncoder {
 
 #[derive(Debug)]
 /// A logger that logs messages to Redis.
-pub struct RedisLogger<CONN, PUBSUB, STREAM>
+pub struct RedisLogger<PUBSUB, STREAM>
 where
-    CONN: ConnectionLike + Send + Sync,
     PUBSUB: PubSubEncoder,
     STREAM: StreamEncoder,
 {
     level: LevelFilter,
-    config: RedisLoggerConfig<CONN, PUBSUB, STREAM>,
+    config: RedisLoggerConfig<PUBSUB, STREAM>,
 }
 
-impl<CONN, PUBSUB, STREAM> RedisLogger<CONN, PUBSUB, STREAM>
+impl<PUBSUB, STREAM> RedisLogger<PUBSUB, STREAM>
 where
-    CONN: ConnectionLike + Send + Sync + 'static,
     PUBSUB: PubSubEncoder + 'static,
     STREAM: StreamEncoder + 'static,
 {
@@ -161,7 +156,7 @@ where
     /// # Returns
     ///
     /// A boxed instance of `RedisLogger`, not yet initialized as the global logger.
-    pub fn new(level: LevelFilter, config: RedisLoggerConfig<CONN, PUBSUB, STREAM>) -> Box<Self> {
+    pub fn new(level: LevelFilter, config: RedisLoggerConfig<PUBSUB, STREAM>) -> Box<Self> {
         Box::new(Self { level, config })
     }
 
@@ -180,7 +175,7 @@ where
     /// # Errors
     ///
     /// see above
-    pub fn init(level: LevelFilter, config: RedisLoggerConfig<CONN, PUBSUB, STREAM>) -> Result<(), SetLoggerError> {
+    pub fn init(level: LevelFilter, config: RedisLoggerConfig<PUBSUB, STREAM>) -> Result<(), SetLoggerError> {
         let redis_logger = Self::new(level, config);
         log::set_max_level(level);
         log::set_boxed_logger(redis_logger)?;
@@ -194,9 +189,8 @@ where
 /// The `enabled` method checks if the log level of the provided `Metadata` is less than or equal to the configured log level.
 /// The `log` method publishes log messages to Redis channels and streams based on the configuration in one atomic operation using a pipeline.
 /// The `flush` method is a no-op in this implementation.
-impl<CONN, PUBSUB, STREAM> Log for RedisLogger<CONN, PUBSUB, STREAM>
+impl<PUBSUB, STREAM> Log for RedisLogger<PUBSUB, STREAM>
 where
-    CONN: ConnectionLike + Send + Sync,
     PUBSUB: PubSubEncoder,
     STREAM: StreamEncoder,
 {
@@ -232,17 +226,98 @@ where
     fn flush(&self) {}
 }
 
+/// A wrapper around a Redis connection that implements the `ConnectionLike` and `Debug` traits.
+struct DebuggableConnection {
+    connection: redis::Connection,
+}
+
+impl ConnectionLike for DebuggableConnection {
+    fn req_packed_command(&mut self, cmd: &[u8]) -> redis::RedisResult<redis::Value> {
+        self.connection.req_packed_command(cmd)
+    }
+
+    fn req_packed_commands(&mut self, cmd: &[u8], offset: usize, count: usize) -> redis::RedisResult<Vec<redis::Value>> {
+        self.connection.req_packed_commands(cmd, offset, count)
+    }
+
+    fn get_db(&self) -> i64 {
+        self.connection.get_db()
+    }
+
+    fn check_connection(&mut self) -> bool {
+        self.connection.check_connection()
+    }
+
+    fn is_open(&self) -> bool {
+        self.connection.is_open()
+    }
+}
+
+impl Debug for DebuggableConnection {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DebuggableConnection")
+    }
+}
+
 /// Configuration for the Redis logger. Pass to `RedisLogger` to configure the logger.
 #[derive(Debug)]
-pub struct RedisLoggerConfig<CONN, PUBSUB, STREAM>
+pub struct RedisLoggerConfig<PUBSUB, STREAM>
 where
-    CONN: ConnectionLike + Send + Sync,
     PUBSUB: PubSubEncoder,
     STREAM: StreamEncoder,
 {
-    connection: Mutex<CONN>,
+    connection: Mutex<DebuggableConnection>,
     channels: Option<(Vec<String>, PUBSUB)>,
     streams: Option<(Vec<String>, STREAM)>,
+}
+
+impl<PUBSUB, STREAM> RedisLoggerConfig<PUBSUB, STREAM>
+where
+    PUBSUB: PubSubEncoder,
+    STREAM: StreamEncoder,
+{
+    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams.
+    /// Panics if the connection string is invalid.
+    pub fn new(connection: Connection, channels: Option<(Vec<String>, PUBSUB)>, streams: Option<(Vec<String>, STREAM)>) -> Self {
+        Self {
+            connection: Mutex::new(DebuggableConnection { connection }),
+            channels,
+            streams,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct RedisLoggerConfigTemp<PUBSUB, STREAM>
+where
+    PUBSUB: PubSubEncoder,
+    STREAM: StreamEncoder,
+{
+    connection_str: String,
+    channels: Option<(Vec<String>, PUBSUB)>,
+    streams: Option<(Vec<String>, STREAM)>,
+}
+
+impl<PUBSUB, STREAM> RedisLoggerConfigTemp<PUBSUB, STREAM>
+where
+    PUBSUB: PubSubEncoder,
+    STREAM: StreamEncoder,
+{
+    /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams.
+    /// Panics if the connection string is invalid.
+    pub fn new(connection_str: String, channels: Option<(Vec<String>, PUBSUB)>, streams: Option<(Vec<String>, STREAM)>) -> Self {
+        Self {
+            connection_str,
+            channels,
+            streams,
+        }
+    }
+
+    pub fn build(self) -> RedisLoggerConfig<PUBSUB, STREAM> {
+        let client = redis::Client::open(self.connection_str).unwrap();
+        let connection = client.get_connection().unwrap();
+        RedisLoggerConfig::new(connection, self.channels, self.streams)
+    }
 }
 
 /// `RedisLoggerConfigBuilder` is a builder for `RedisLoggerConfig`.
@@ -259,7 +334,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `channels` - A vector of channel names.
     /// * `encoder` - An encoder that implements `PubSubEncoder`.
     ///
@@ -269,22 +344,17 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Panics
     ///
-    /// Panics if the channels vector is empty
-    pub fn build_with_pubsub<CONN, PUBSUB>(
-        connection: CONN,
+    /// Panics if the channels vector is empty or connection string is invalid
+    pub fn with_pubsub<PUBSUB>(
+        connection_str: String,
         channels: Vec<String>,
         encoder: PUBSUB,
-    ) -> RedisLoggerConfig<CONN, PUBSUB, DummyStreamEncoder>
+    ) -> RedisLoggerConfigTemp<PUBSUB, DummyStreamEncoder>
     where
-        CONN: ConnectionLike + Send + Sync,
         PUBSUB: PubSubEncoder,
     {
         Self::check_args(!channels.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: Some((channels, encoder)),
-            streams: None,
-        }
+        RedisLoggerConfigTemp::new(connection_str, Some((channels, encoder)), None)
     }
 
     /// Constructs a `RedisLoggerConfig` with a given connection and channels, using the default Pub/Sub encoder.
@@ -293,7 +363,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `channels` - A vector of channel names.
     ///
     /// # Returns
@@ -304,26 +374,19 @@ impl RedisLoggerConfigBuilder {
     ///
     /// Panics if the channels vector is empty
     #[cfg(feature = "default_encoders")]
-    pub fn build_with_pubsub_default<CONN>(
-        connection: CONN,
+    pub fn with_pubsub_default(
+        connection_str: String,
         channels: Vec<String>,
-    ) -> RedisLoggerConfig<CONN, DefaultPubSubEncoder, DummyStreamEncoder>
-    where
-        CONN: ConnectionLike + Send + Sync,
-    {
+    ) -> RedisLoggerConfigTemp<DefaultPubSubEncoder, DummyStreamEncoder> {
         Self::check_args(!channels.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: Some((channels, DefaultPubSubEncoder::new())),
-            streams: None,
-        }
+        RedisLoggerConfigTemp::new(connection_str, Some((channels, DefaultPubSubEncoder::new())), None)
     }
 
     /// Constructs a `RedisLoggerConfig` with a given connection, streams, and a Stream encoder.
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `streams` - A vector of stream names.
     /// * `encoder` - An encoder that implements `StreamEncoder`.
     ///
@@ -334,21 +397,16 @@ impl RedisLoggerConfigBuilder {
     /// # Panics
     ///
     /// Panics if the streams vector is empty
-    pub fn build_with_streams<CONN, STREAM>(
-        connection: CONN,
+    pub fn with_streams<STREAM>(
+        connection_str: String,
         streams: Vec<String>,
         encoder: STREAM,
-    ) -> RedisLoggerConfig<CONN, DummyPubSubEncoder, STREAM>
+    ) -> RedisLoggerConfigTemp<DummyPubSubEncoder, STREAM>
     where
-        CONN: ConnectionLike + Send + Sync,
         STREAM: StreamEncoder,
     {
         Self::check_args(!streams.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: None,
-            streams: Some((streams, encoder)),
-        }
+        RedisLoggerConfigTemp::new(connection_str, None, Some((streams, encoder)))
     }
 
     /// Constructs a `RedisLoggerConfig` with a given connection and streams, using the default Stream encoder.
@@ -357,7 +415,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `streams` - A vector of stream names.
     ///
     /// # Returns
@@ -368,26 +426,19 @@ impl RedisLoggerConfigBuilder {
     ///
     /// Panics if the streams vector is empty
     #[cfg(feature = "default_encoders")]
-    pub fn build_with_streams_default<CONN>(
-        connection: CONN,
+    pub fn with_streams_default(
+        connection_str: String,
         streams: Vec<String>,
-    ) -> RedisLoggerConfig<CONN, DummyPubSubEncoder, DefaultStreamEncoder>
-    where
-        CONN: ConnectionLike + Send + Sync,
-    {
+    ) -> RedisLoggerConfigTemp<DummyPubSubEncoder, DefaultStreamEncoder> {
         Self::check_args(!streams.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: None,
-            streams: Some((streams, DefaultStreamEncoder::new())),
-        }
+        RedisLoggerConfigTemp::new(connection_str, None, Some((streams, DefaultStreamEncoder::new())))
     }
 
     /// Constructs a `RedisLoggerConfig` with a given connection, channels, streams, a Pub/Sub encoder, and a Stream encoder.
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `channels` - A vector of channel names.
     /// * `pubsub_encoder` - An encoder that implements `PubSubEncoder`.
     /// * `streams` - A vector of stream names.
@@ -400,24 +451,23 @@ impl RedisLoggerConfigBuilder {
     /// # Panics
     ///
     /// Panics if the streams and channels vectors are both empty
-    pub fn build_with_pubsub_and_streams<CONN, PUBSUB, STREAM>(
-        connection: CONN,
+    pub fn with_pubsub_and_streams<PUBSUB, STREAM>(
+        connection_str: String,
         channels: Vec<String>,
         pubsub_encoder: PUBSUB,
         streams: Vec<String>,
         stream_encoder: STREAM,
-    ) -> RedisLoggerConfig<CONN, PUBSUB, STREAM>
+    ) -> RedisLoggerConfigTemp<PUBSUB, STREAM>
     where
-        CONN: ConnectionLike + Send + Sync,
         PUBSUB: PubSubEncoder,
         STREAM: StreamEncoder,
     {
         Self::check_args(!channels.is_empty() && !streams.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: Some((channels, pubsub_encoder)),
-            streams: Some((streams, stream_encoder)),
-        }
+        RedisLoggerConfigTemp::new(
+            connection_str,
+            Some((channels, pubsub_encoder)),
+            Some((streams, stream_encoder)),
+        )
     }
 
     /// Constructs a `RedisLoggerConfig` with a given connection, channels, and streams, using the default Pub/Sub and Stream encoders.
@@ -426,7 +476,7 @@ impl RedisLoggerConfigBuilder {
     ///
     /// # Arguments
     ///
-    /// * `connection` - A connection that implements `ConnectionLike + Send + Sync`.
+    /// * `connection_str` - A connection string to connect to Redis.
     /// * `channels` - A vector of channel names.
     /// * `streams` - A vector of stream names.
     ///
@@ -438,20 +488,17 @@ impl RedisLoggerConfigBuilder {
     ///
     /// Panics if the streams and channels vectors are both empty
     #[cfg(feature = "default_encoders")]
-    pub fn build_with_pubsub_and_streams_default<CONN>(
-        connection: CONN,
+    pub fn with_pubsub_and_streams_default(
+        connection_str: String,
         channels: Vec<String>,
         streams: Vec<String>,
-    ) -> RedisLoggerConfig<CONN, DefaultPubSubEncoder, DefaultStreamEncoder>
-    where
-        CONN: ConnectionLike + Send + Sync,
-    {
+    ) -> RedisLoggerConfigTemp<DefaultPubSubEncoder, DefaultStreamEncoder> {
         Self::check_args(!channels.is_empty() && !streams.is_empty());
-        RedisLoggerConfig {
-            connection: Mutex::new(connection),
-            channels: Some((channels, DefaultPubSubEncoder::new())),
-            streams: Some((streams, DefaultStreamEncoder::new())),
-        }
+        RedisLoggerConfigTemp::new(
+            connection_str,
+            Some((channels, DefaultPubSubEncoder::new())),
+            Some((streams, DefaultStreamEncoder::new())),
+        )
     }
 
     const fn check_args(value: bool) {
@@ -464,9 +511,8 @@ impl RedisLoggerConfigBuilder {
 
 #[cfg_attr(docsrs, doc(cfg(feature = "shared_logger")))]
 #[cfg(feature = "shared_logger")]
-impl<CONN, PUBSUB, STREAM> simplelog::SharedLogger for RedisLogger<CONN, PUBSUB, STREAM>
+impl<PUBSUB, STREAM> simplelog::SharedLogger for RedisLogger<PUBSUB, STREAM>
 where
-    CONN: ConnectionLike + Send + Sync + 'static,
     PUBSUB: PubSubEncoder + 'static,
     STREAM: StreamEncoder + 'static,
 {

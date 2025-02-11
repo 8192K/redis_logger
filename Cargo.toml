@@ -1,6 +1,6 @@
 [package]
 name = "redis_logger"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2018"
 description = "A logger implementing the log::Log trait that writes log messages to a Redis pub/sub channel, a stream or both using the redis_rs crate"
 repository = "https://github.com/8192K/redis_logger"
@@ -12,13 +12,13 @@ readme = "README.md"
 
 [dependencies]
 log = { version = "0.4" , features = ["std"] }
-redis = "0.24"
+redis = "0.28"
 serde_json = { version = "1.0", optional = true }
 simplelog = { version = "0.12", optional = true }
 serializable_log_record = { version = "0.3", features = ["serde"], optional = true }
 
 [dev-dependencies]
-mockall = "0.12"
+mockall = "0.13"
 
 [features]
 default_encoders = ["dep:serde_json", "dep:serializable_log_record"]
